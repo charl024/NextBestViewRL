@@ -1,0 +1,12 @@
+
+open3d
+numpy
+trimesh
+gymnasium
+stable-baselines3
+sb3-contrib
+pyyaml
+matplotlib
+tqdm
+tensorboard
+torch
