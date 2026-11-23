@@ -36,4 +36,31 @@ def sample_patches(V, F, seed=0):
         PATCH_AREA-sized.
     '''
     tm = trimesh.Trimesh(vertices=V, faces=F, process=False)
-    
+    M = int(np.clip(round(tm.area / PATCH_AREA), M_MIN, M_MAX))
+    pts, face = trimesh.sample.sample_surface(tm, M, seed=seed)
+    return pts, face.astype(np.int64)
+
+def make_splits(root, out_dir, seen_classes, unseen_classes, n_train=50, n_test=20, seed=0):
+    ''' Write train / test_seen / test_unseen mesh lists to out_dir/<split>.txt.
+        train and test_seen come from seen_classes (ModelNet train and test folders);
+        test_unseen comes from the test folders of unseen_classes.
+        Return (dict split name -> list of mesh paths)
+    '''
+    rng = np.random.default_rng(seed)
+    root, out_dir = Path(root), Path(out_dir)
+    out_dir.mkdir(parents=True, exist_ok=True)
+
+    def pick(cls, split, n):
+        files = sorted((root / cls / split).glob("*.off"))
+        idx = rng.choice(len(files), size=min(n, len(files)), replace=False)
+        return [str(files[i]) for i in sorted(idx)]
+
+    splits = {
+        "train":       [f for c in seen_classes for f in pick(c, "train", n_train)],
+        "test_seen":   [f for c in seen_classes for f in pick(c, "test", n_test)],
+        "test_unseen": [f for c in unseen_classes for f in pick(c, "test", n_test)],
+    }
+    for name, files in splits.items():
+        (out_dir / f"{name}.txt").write_text("\n".join(files) + "\n")
+        print(f"{name}: {len(files)} meshes")
+    return splits
