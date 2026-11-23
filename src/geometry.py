@@ -64,3 +64,20 @@ def ortho_rays(p, extent, W, H):
     o = p + S[..., None] * r + T[..., None] * u
     rays = np.concatenate([o, np.broadcast_to(f, o.shape)], axis=-1).astype(np.float32)
     return o3d.core.Tensor(rays), (2*extent/W) * (2*extent/H)
+
+def view_score(scene, p, extent, W=512, H=512, weights=None, triangles=None):
+    ''' Cast a W x H grid of parallel rays at the mesh from viewpoint p.
+        Each hit adds one cell area. The sum is the projected area A.
+        Returns (np.float64 A, np.float64 M or None)
+    '''
+    rays, cell = ortho_rays(p, extent, W, H)
+    ans = scene.cast_rays(rays)
+    hits = np.isfinite(ans['t_hit'].numpy())
+    area = hits.sum() * cell
+    if weights is None:
+        return area, None
+    # Use only the hits. A miss has the Open3D INVALID_ID as its primitive ID.
+    ids = ans['primitive_ids'].numpy()[hits].astype(np.int64)
+    uv = ans['primitive_uvs'].numpy()[hits].astype(np.float64)
+    bary = np.stack([1.0 - uv[:, 0] - uv[:, 1], uv[:, 0], uv[:, 1]], axis=1)   # Open3D convention: P = (1-u-v) v0 + u v1 + v v2
+    return area, (weights[triangles[ids]] * bary).sum() * cell
