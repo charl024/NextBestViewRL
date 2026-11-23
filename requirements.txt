@@ -2,6 +2,7 @@
 open3d
 numpy
 trimesh
+scipy
 gymnasium
 stable-baselines3
 sb3-contrib
