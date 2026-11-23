@@ -9,7 +9,6 @@
 # Environment overrides:
 #   DATA_DIR      default: <repo>/data
 #   MODELNET_URL  default: https://modelnet.cs.princeton.edu/ModelNet40.zip
-set -euo pipefail
 
 REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 DATA_DIR="${DATA_DIR:-$REPO/data}"
