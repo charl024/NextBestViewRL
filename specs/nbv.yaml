@@ -1,0 +1,73 @@
+# NBV specs for SLM-Lab v5.2.0
+# Symlinked into SLM-Lab/slm_lab/spec/nbv/nbv.yaml
+# Every run must supply a seed. From SLM-Lab/:  uv run python ../run_slm.py run -s seed=11 nbv/nbv.yaml nbv_full train
+
+_meta: &meta
+  distributed: false
+  rigorous_eval: 1
+  eval_frequency: 20000
+  log_frequency: 10000
+  max_session: 1
+  max_trial: 1
+  random_seed: "${seed}"
+
+_env: &env
+  name: NBV-v0
+  num_envs: 8
+  max_t: null
+  max_frame: 1500000
+  cache: data/cache/train          # relative to the repo root
+  k: 5                             # must match depth_k in _net
+  img: 32                          # must match depth_img in _net
+  reward_scale: 10.0
+  history: all
+  use_dirs: true
+
+_ppo: &ppo
+  name: PPO
+  action_pdtype: default
+  action_policy: default
+  explore_var_spec: null
+  gamma: 1.0                       # fixed k-step episodes: return = score gain
+  lam: 0.95
+  clip_eps_spec: {name: no_decay, start_val: 0.2, end_val: 0.2, start_step: 0, end_step: 0}
+  entropy_coef_spec: {name: no_decay, start_val: 0.01, end_val: 0.01, start_step: 0, end_step: 0}
+  val_loss_coef: 0.5
+  clip_val_loss: false
+  time_horizon: 256                # across 8 envs, 2048 steps per update
+  minibatch_size: 512
+  training_epoch: 4
+
+_net: &net
+  type: NBVConvNet                 
+  shared: true                  
+  hid_layers: [128]
+  hid_layers_activation: relu
+  depth_k: 5
+  depth_img: 32
+  init_fn: orthogonal_
+  clip_grad_val: 0.5
+  use_same_optim: false        
+  loss_spec: {name: MSELoss}
+  optim_spec: {name: Adam, lr: 0.0003}
+  gpu: auto
+
+nbv_full:
+  agent: {name: PPO, algorithm: *ppo, memory: {name: OnPolicyBatchReplay}, net: *net}
+  env: *env
+  meta: *meta
+
+nbv_hist1:                         # ablation: only the latest depth image
+  agent: {name: PPO, algorithm: *ppo, memory: {name: OnPolicyBatchReplay}, net: *net}
+  env: {<<: *env, history: last}
+  meta: *meta
+
+nbv_nodirs:                        # ablation: no view directions
+  agent: {name: PPO, algorithm: *ppo, memory: {name: OnPolicyBatchReplay}, net: *net}
+  env: {<<: *env, use_dirs: false}
+  meta: *meta
+
+nbv_one:                           # single-object check, 200k frames
+  agent: {name: PPO, algorithm: *ppo, memory: {name: OnPolicyBatchReplay}, net: *net}
+  env: {<<: *env, max_files: 1, max_frame: 200000}
+  meta: *meta
