@@ -1,9 +1,9 @@
 """Show what greedy and a trained agent see at each of their k views, in the order chosen.
 
-Each panel is an orthographic render of the mesh from that view's camera. Faces colored by the
-colormap are surfaces this view sees better than every earlier view (the area it adds, divided
-by the best area any of the 100 views gives that surface); gray faces add nothing new. The inset
-is the depth image the agent receives for that view.
+Each panel is an orthographic render of the mesh from that view's camera, titled with the score
+the view adds. Dots are the surface patches the view's rays hit: orange where the view sees the
+patch better than every earlier view (larger dot = more area added), gray where it adds nothing.
+The inset is the depth image the agent receives for that view.
 
     uv run --project SLM-Lab python src/sequence_figure.py --cache data/cache/test_unseen \
         --run SLM-Lab/data/nbv_full_2026_11_24_093508 --objects piano_0284
@@ -16,17 +16,19 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib.collections import PolyCollection
+from matplotlib.lines import Line2D
 
 from baselines import greedy
 from env import NBVEnv
 from evaluate import fixed_starts, rollout
 from score import curve, load_cache
 from slm_policy import SLMPolicy
-from view_figure import nearest, normalize, read_off
+from view_figure import MESH_COLOR, normalize, read_off
 
 EXTENT = 1.0
-NO_GAIN = np.array([0.82, 0.82, 0.82])
-CMAP = plt.cm.viridis
+NEW_COLOR = "#ff7f0e"
+SEEN_COLOR = "0.35"
+DOT_MIN, DOT_MAX = 3.0, 22.0
 
 
 def look_at(p):
@@ -38,36 +40,40 @@ def look_at(p):
     return f, r, np.cross(f, r)
 
 
-def render(ax, tris, normals, colors, cam):
+def render(ax, tris, normals, cam):
     ''' Orthographic render from cam, image right = r and up = u, far faces drawn first. '''
     f, r, u = look_at(cam)
     xy = np.stack([tris @ r, tris @ u], axis=-1)
     order = np.argsort(-(tris.mean(axis=1) @ f))
     shade = 0.35 + 0.65 * np.abs(normals @ f)
-    ax.add_collection(PolyCollection(xy[order], facecolors=colors[order] * shade[order, None],
+    ax.add_collection(PolyCollection(xy[order], facecolors=MESH_COLOR[None, :] * shade[order, None],
                                      edgecolors="none"))
     ax.set_xlim(-EXTENT, EXTENT); ax.set_ylim(-EXTENT, EXTENT)
     ax.set_aspect("equal")
     ax.set_xticks([]); ax.set_yticks([])
 
 
-def gain_colors(P, best, v, face_patch):
-    best_all = np.maximum(P.max(axis=0), 1e-12)
-    added = np.maximum(P[v] - best, 0.0) / best_all
-    a = added[face_patch]
-    colors = np.tile(NO_GAIN, (len(a), 1))
-    colors[a > 0] = CMAP(a[a > 0])[:, :3]
-    return colors
+def dots(ax, points, P, best, v, cam):
+    ''' Patches hit by view v: new ones sized by area added / best possible area. Returns (new, visible). '''
+    _, r, u = look_at(cam)
+    visible = P[v] > 0
+    added = np.maximum(P[v] - best, 0.0) / np.maximum(P.max(axis=0), 1e-12)
+    new = visible & (added > 0)
+    seen = visible & ~new
+    ax.scatter(points[seen] @ r, points[seen] @ u, s=DOT_MIN, color=SEEN_COLOR, lw=0, zorder=3)
+    ax.scatter(points[new] @ r, points[new] @ u, s=DOT_MIN + (DOT_MAX - DOT_MIN) * added[new],
+               color=NEW_COLOR, edgecolors="black", lw=0.2, zorder=4)
+    return int(new.sum()), int(visible.sum())
 
 
 def sequence(npz, policy, k, start, out_path):
     o = load_cache(npz)
     z = np.load(npz)
     V, F = read_off(str(z["mesh_path"]))
+    points = z["points"]
     tris = normalize(V)[F]
     normals = np.cross(tris[:, 1] - tris[:, 0], tris[:, 2] - tris[:, 0])
     normals /= np.maximum(np.linalg.norm(normals, axis=1, keepdims=True), 1e-12)
-    face_patch = nearest(tris.mean(axis=1), z["points"])
 
     P, views = o["P"], o["views"]
     env = NBVEnv(files=[npz], k=k, history=policy.spec["env"].get("history", "all"),
@@ -79,19 +85,22 @@ def sequence(npz, policy, k, start, out_path):
         c = curve(P, chosen, o["F_all"])
         best = np.zeros(P.shape[1], np.float32)
         for i, (ax, v) in enumerate(zip(row, chosen)):
-            render(ax, tris, normals, gain_colors(P, best, v, face_patch), views[v])
+            render(ax, tris, normals, views[v])
+            n_new, n_vis = dots(ax, points, P, best, v, views[v])
             best = np.maximum(best, P[v])
             title = f"view 1 (start): {c[0]:.3f}" if i == 0 else f"view {i + 1}: +{c[i] - c[i - 1]:.3f}"
-            ax.set_title(title, fontsize=11)
+            ax.set_title(f"{title}\n{n_new} new / {n_vis} visible patches", fontsize=10)
             inset = ax.inset_axes([0.68, 0.68, 0.3, 0.3])
             inset.imshow(env._depth(v), cmap="gray", vmin=0, vmax=1)
             inset.set_xticks([]); inset.set_yticks([])
         row[0].set_ylabel(f"{name}\nfinal {c[-1]:.3f}", fontsize=12)
 
-    fig.subplots_adjust(left=0.06, right=0.9, bottom=0.03, top=0.88, wspace=0.05, hspace=0.18)
-    sm = plt.cm.ScalarMappable(cmap=CMAP, norm=plt.Normalize(0, 1))
-    fig.colorbar(sm, cax=fig.add_axes([0.92, 0.15, 0.012, 0.6]),
-                 label="area added by this view / best possible area (gray = nothing new)")
+    fig.subplots_adjust(left=0.06, right=0.99, bottom=0.08, top=0.86, wspace=0.05, hspace=0.25)
+    handles = [Line2D([], [], marker="o", ls="", ms=7, mfc=NEW_COLOR, mec="black", mew=0.3,
+                      label="patch seen better than by any earlier view (size = area added)"),
+               Line2D([], [], marker="o", ls="", ms=4, mfc=SEEN_COLOR, mec="none",
+                      label="patch visible but already seen as well or better")]
+    fig.legend(handles=handles, loc="lower center", ncol=2, fontsize=10, frameon=False)
     fig.suptitle(f"{Path(npz).stem}, k = {k}, inset = depth image given to the agent", fontsize=13)
     fig.savefig(out_path, dpi=150)
     plt.close(fig)
