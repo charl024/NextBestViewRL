@@ -21,7 +21,7 @@ class NBVEnv(gym.Env):
                  cache="data/cache/train",
                  files=None,
                  max_files=None,
-                 k=5, n_views=100,
+                 k=4, n_views=100,
                  img=32, reward_scale=10.0,
                  history="all",
                  use_dirs=True,

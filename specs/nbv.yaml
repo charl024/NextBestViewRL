@@ -15,9 +15,9 @@ _env: &env
   name: NBV-v0
   num_envs: 8
   max_t: null
-  max_frame: 1500000
+  max_frame: 5000000
   cache: data/cache/train          # relative to the repo root
-  k: 5                             # must match depth_k in _net
+  k: 4                             # must match depth_k in _net
   img: 32                          # must match depth_img in _net
   reward_scale: 10.0
   history: all
@@ -43,7 +43,7 @@ _net: &net
   shared: true                  
   hid_layers: [128]
   hid_layers_activation: relu
-  depth_k: 5
+  depth_k: 4
   depth_img: 32
   init_fn: orthogonal_
   clip_grad_val: 0.5
