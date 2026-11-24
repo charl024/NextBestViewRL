@@ -15,7 +15,7 @@ _env: &env
   name: NBV-v0
   num_envs: 8
   max_t: null
-  max_frame: 1500000
+  max_frame: 5000000
   cache: data/cache/train          # relative to the repo root
   k: 4                             # must match depth_k in _net
   img: 32                          # must match depth_img in _net
