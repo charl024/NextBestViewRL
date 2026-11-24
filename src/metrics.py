@@ -1,15 +1,12 @@
-"""Learning curves, Project 2 metrics, and the run manifest, from SLM-Lab output folders.
+"""Learning-curve metrics and the run manifest, from SLM-Lab output folders.
 
-    uv run --project SLM-Lab python src/plot.py --runs "full=SLM-Lab/data/nbv_full_*" \
-        --runs "hist1=SLM-Lab/data/nbv_hist1_*" --threshold 3.73 --floor 3.26
+    uv run --project SLM-Lab python src/metrics.py --runs "full=SLM-Lab/data/nbv_full_*" \
+        --runs "hist1=SLM-Lab/data/nbv_hist1_*" --threshold 3.82 --floor 3.25
 """
 import argparse
 import csv
 from pathlib import Path
 
-import matplotlib
-matplotlib.use("Agg")
-import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 
@@ -51,20 +48,6 @@ def write_manifest(rows, path):
         w.writerows(rows)
 
 
-def plot(curves, out_path):
-    plt.figure(figsize=(6, 4))
-    for i, (label, runs) in enumerate(curves.items()):
-        for df in runs.values():
-            plt.plot(df["frame"], df["total_reward"], color=f"C{i}", alpha=0.25, lw=1)
-        n = min(len(df) for df in runs.values())
-        mean = np.mean([df["total_reward"].to_numpy()[:n] for df in runs.values()], axis=0)
-        frames = next(iter(runs.values()))["frame"].to_numpy()[:n]
-        plt.plot(frames, mean, color=f"C{i}", lw=2.5, label=f"{label} (n={len(runs)} seeds)")
-    plt.xlabel("environment frames"); plt.ylabel("eval return (10 x score gain)")
-    plt.grid(alpha=0.3); plt.legend(); plt.tight_layout()
-    plt.savefig(out_path, dpi=150); plt.close()
-
-
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--runs", action="append", required=True)   # label=glob of SLM-Lab run folders
@@ -73,7 +56,7 @@ def main():
     ap.add_argument("--out", default="results")
     a = ap.parse_args()
 
-    curves, manifest = {}, []
+    found, manifest = [], []
     for kv in a.runs:
         label, pattern = kv.split("=", 1)
         runs, rows = {}, {}
@@ -87,7 +70,7 @@ def main():
         if not runs:
             print(f"{label:8s} no runs found")
             continue
-        curves[label] = runs
+        found.append(label)
         auc = np.array([m["auc"] for m in rows.values()])
         fin = np.array([m["final"] for m in rows.values()])
         print(f"{label:8s} AUC {auc.mean():.3f} +/- {sd(auc):.3f}  final {fin.mean():.3f} +/- {sd(fin):.3f}  "
@@ -95,11 +78,9 @@ def main():
               f"failed {sum(m['failed'] for m in rows.values())}/{len(rows)}  "
               f"minutes {[m['wall_min'] for m in rows.values()]}")
 
-    if not curves:
+    if not found:
         raise SystemExit("no runs found for any label")
-    out = Path(a.out)
-    write_manifest(manifest, out / "run-manifest.csv")
-    plot(curves, out / f"learning_{'_vs_'.join(curves)}.png")
+    write_manifest(manifest, Path(a.out) / "run-manifest.csv")
 
 
 if __name__ == "__main__":
