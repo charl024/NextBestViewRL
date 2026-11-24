@@ -23,7 +23,6 @@ from slm_policy import SLMPolicy
 
 CAMERA_RADIUS = 1.45
 MESH_COLOR = np.array([0.62, 0.70, 0.80])
-LIGHT = np.array([0.4, -0.5, 0.75]) / np.linalg.norm([0.4, -0.5, 0.75])
 
 
 def read_off(path):
@@ -45,9 +44,8 @@ def normalize(V):
     return V / np.linalg.norm(V, axis=1).max()
 
 
-def draw(ax, tris, shade, dirs, views, title):
-    colors = MESH_COLOR[None, :] * shade[:, None]
-    ax.add_collection3d(Poly3DCollection(tris, facecolors=colors, edgecolors="none"))
+def draw(ax, tris, dirs, views, title):
+    ax.add_collection3d(Poly3DCollection(tris, facecolors=MESH_COLOR, edgecolors="none"))
     cams = dirs * CAMERA_RADIUS
     ax.scatter(*cams.T, s=4, color="0.6", depthshade=False)
     for i, v in enumerate(views, start=1):
@@ -68,9 +66,6 @@ def figure(npz, policy, k, start, out_path):
     V, F = read_off(str(np.load(npz)["mesh_path"]))
     V = normalize(V)
     tris = V[F]
-    normals = np.cross(tris[:, 1] - tris[:, 0], tris[:, 2] - tris[:, 0])
-    normals /= np.maximum(np.linalg.norm(normals, axis=1, keepdims=True), 1e-12)
-    shade = 0.45 + 0.55 * np.abs(normals @ LIGHT)
 
     P, dirs = o["P"], o["views"] / np.linalg.norm(o["views"], axis=1, keepdims=True)
     env = NBVEnv(files=[npz], k=k, history=policy.spec["env"].get("history", "all"),
@@ -84,7 +79,7 @@ def figure(npz, policy, k, start, out_path):
         score = curve(P, views, o["F_all"])[-1]
         ax = fig.add_subplot(1, 3, i, projection="3d")
         ax.view_init(elev=20, azim=-60)
-        draw(ax, tris, shade, dirs, views, f"{name}: score {score:.3f}")
+        draw(ax, tris, dirs, views, f"{name}: score {score:.3f}")
     fig.subplots_adjust(left=0, right=1, bottom=0, top=0.86, wspace=0)
     fig.suptitle(f"{Path(npz).stem}, k = {k}, view 1 = shared start view", fontsize=12, y=0.98)
     fig.savefig(out_path, dpi=150, bbox_inches="tight")
