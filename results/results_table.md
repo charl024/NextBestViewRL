@@ -2,6 +2,7 @@
 
 k = 4 views per object, 200 objects per test split, one fixed start view per object (same for every method).
 Agent rows are mean +/- std across 5 seeds (11, 22, 33, 44, 55). Baselines are single values.
+fixed_seq uses the same views for every object with the same start view, fit on the training meshes (`results/fixed_seq_k4.npy`).
 
 Columns:
 - **Score**: final normalized area score, F(S) / F_all
@@ -16,6 +17,7 @@ Columns:
 |---|---|---|---|---|---|
 | random | 0.549 | 0.080 | 0.406 | 66.6 | 0.817 |
 | farthest | 0.604 | 0.085 | 0.442 | 78.2 | 0.870 |
+| fixed_seq | 0.656 | 0.062 | 0.479 | 87.5 | 0.894 |
 | top_k_area | 0.645 | 0.090 | 0.466 | 84.5 | 0.885 |
 | greedy | 0.719 | 0.070 | 0.519 | 100.0 | 0.910 |
 | full | 0.705 +/- 0.004 | 0.074 | 0.480 +/- 0.004 | 97.2 +/- 0.8 | 0.893 +/- 0.002 |
@@ -28,6 +30,7 @@ Columns:
 |---|---|---|---|---|---|
 | random | 0.534 | 0.090 | 0.400 | 66.0 | 0.835 |
 | farthest | 0.596 | 0.082 | 0.436 | 79.6 | 0.881 |
+| fixed_seq | 0.611 | 0.083 | 0.452 | 82.0 | 0.889 |
 | top_k_area | 0.634 | 0.099 | 0.457 | 86.1 | 0.884 |
 | greedy | 0.697 | 0.080 | 0.506 | 100.0 | 0.918 |
 | full | 0.630 +/- 0.007 | 0.105 | 0.444 +/- 0.003 | 85.8 +/- 1.5 | 0.882 +/- 0.003 |
