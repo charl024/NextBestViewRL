@@ -1,13 +1,9 @@
-
+# nbv conda env: data setup, precompute, baselines, env checks, figures.
+# Training and agent evaluation run in SLM-Lab's own uv env (plus matplotlib).
 open3d
 numpy
 trimesh
 scipy
 gymnasium
-stable-baselines3
-sb3-contrib
-pyyaml
 matplotlib
 tqdm
-tensorboard
-torch

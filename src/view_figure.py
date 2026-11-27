@@ -1,9 +1,7 @@
 """Show the views chosen by farthest-point, greedy, and a trained agent on the actual mesh.
 
-Each face is colored by how well the chosen views see it: the best projected area any chosen
-view gives its nearest patch, divided by the best area any of the 100 views gives that patch
-(0 = not seen, 1 = seen as well as possible). Chosen cameras are numbered in the order picked;
-cameras are drawn closer to the object than their true radius of 2.5.
+Chosen cameras are numbered in the order picked; cameras are drawn closer to the object than
+their true radius of 2.5.
 
     uv run --project SLM-Lab python src/view_figure.py --cache data/cache/test_unseen \
         --run SLM-Lab/data/nbv_full_2026_11_24_093508 --objects airplane_0639 chair_0922
@@ -15,6 +13,7 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
+from matplotlib.colors import LinearSegmentedColormap
 from mpl_toolkits.mplot3d.art3d import Poly3DCollection
 
 from baselines import farthest_point, greedy
@@ -24,8 +23,12 @@ from score import curve, load_cache
 from slm_policy import SLMPolicy
 
 CAMERA_RADIUS = 1.45
-LIGHT = np.array([0.4, -0.5, 0.75]) / np.linalg.norm([0.4, -0.5, 0.75])
-CHUNK = 4096
+ELEV, AZIM = 20, -60
+MESH_COLOR = np.array([0.62, 0.70, 0.80])
+MESH_CMAP = LinearSegmentedColormap.from_list(
+    "mesh", [MESH_COLOR * 0.45, MESH_COLOR, np.minimum(MESH_COLOR * 1.15, 1.0)])
+SHADE_MIN = 0.3
+LIGHT_TILT = 0.35
 
 
 def read_off(path):
@@ -47,26 +50,25 @@ def normalize(V):
     return V / np.linalg.norm(V, axis=1).max()
 
 
-def nearest(queries, points):
-    out = np.empty(len(queries), dtype=np.int64)
-    p2 = (points ** 2).sum(axis=1)
-    for s in range(0, len(queries), CHUNK):
-        q = queries[s:s + CHUNK]
-        out[s:s + CHUNK] = (p2[None, :] - 2 * q @ points.T).argmin(axis=1)
-    return out
+def vertex_shade(V, F, forward, light):
+    ''' Smooth shading in [SHADE_MIN, 1] per vertex, for a camera looking along forward.
+        Face normals are turned toward the camera before averaging, since mesh winding is inconsistent. '''
+    tris = V[F]
+    n = np.cross(tris[:, 1] - tris[:, 0], tris[:, 2] - tris[:, 0])
+    n *= np.where(n @ forward > 0, -1.0, 1.0)[:, None]
+    vn = np.zeros_like(V)
+    for j in range(3):
+        np.add.at(vn, F[:, j], n)
+    vn /= np.maximum(np.linalg.norm(vn, axis=1, keepdims=True), 1e-12)
+    return SHADE_MIN + (1 - SHADE_MIN) * np.clip(vn @ light, 0.0, 1.0)
 
 
-def face_quality(P, views, face_patch):
-    best_all = P.max(axis=0)
-    best_set = P[list(views)].max(axis=0)
-    q = np.where(best_all > 0, best_set / np.maximum(best_all, 1e-12), np.nan)
-    return q[face_patch]
+def camera_light(forward, right, up):
+    light = -forward + LIGHT_TILT * (up - right)
+    return light / np.linalg.norm(light)
 
 
-def draw(ax, tris, quality, shade, dirs, views, title):
-    colors = plt.cm.viridis(np.nan_to_num(quality, nan=0.0))
-    colors[np.isnan(quality)] = (0.85, 0.85, 0.85, 1.0)
-    colors[:, :3] *= shade[:, None]
+def draw(ax, tris, colors, dirs, views, title):
     ax.add_collection3d(Poly3DCollection(tris, facecolors=colors, edgecolors="none"))
     cams = dirs * CAMERA_RADIUS
     ax.scatter(*cams.T, s=4, color="0.6", depthshade=False)
@@ -85,15 +87,15 @@ def draw(ax, tris, quality, shade, dirs, views, title):
 
 def figure(npz, policy, k, start, out_path):
     o = load_cache(npz)
-    mesh_path = str(np.load(npz)["mesh_path"])
-    patches = np.load(npz)["points"]
-    V, F = read_off(mesh_path)
+    V, F = read_off(str(np.load(npz)["mesh_path"]))
     V = normalize(V)
     tris = V[F]
-    normals = np.cross(tris[:, 1] - tris[:, 0], tris[:, 2] - tris[:, 0])
-    normals /= np.maximum(np.linalg.norm(normals, axis=1, keepdims=True), 1e-12)
-    shade = 0.45 + 0.55 * np.abs(normals @ LIGHT)
-    face_patch = nearest(tris.mean(axis=1), patches)
+    el, az = np.radians(ELEV), np.radians(AZIM)
+    forward = -np.array([np.cos(el) * np.cos(az), np.cos(el) * np.sin(az), np.sin(el)])
+    right = np.cross(forward, [0.0, 0.0, 1.0])
+    right /= np.linalg.norm(right)
+    shade = vertex_shade(V, F, forward, camera_light(forward, right, np.cross(right, forward)))
+    colors = MESH_CMAP(shade[F].mean(axis=1))
 
     P, dirs = o["P"], o["views"] / np.linalg.norm(o["views"], axis=1, keepdims=True)
     env = NBVEnv(files=[npz], k=k, history=policy.spec["env"].get("history", "all"),
@@ -106,13 +108,9 @@ def figure(npz, policy, k, start, out_path):
     for i, (name, views) in enumerate(picks.items(), start=1):
         score = curve(P, views, o["F_all"])[-1]
         ax = fig.add_subplot(1, 3, i, projection="3d")
-        ax.view_init(elev=20, azim=-60)
-        draw(ax, tris, face_quality(P, views, face_patch), shade, dirs, views,
-             f"{name}: score {score:.3f}")
-    fig.subplots_adjust(left=0, right=0.9, bottom=0, top=0.86, wspace=0)
-    sm = plt.cm.ScalarMappable(cmap="viridis", norm=plt.Normalize(0, 1))
-    fig.colorbar(sm, cax=fig.add_axes([0.92, 0.2, 0.012, 0.55]),
-                 label="seen area / best possible area (gray = never visible)")
+        ax.view_init(elev=ELEV, azim=AZIM)
+        draw(ax, tris, colors, dirs, views, f"{name}: score {score:.3f}")
+    fig.subplots_adjust(left=0, right=1, bottom=0, top=0.86, wspace=0)
     fig.suptitle(f"{Path(npz).stem}, k = {k}, view 1 = shared start view", fontsize=12, y=0.98)
     fig.savefig(out_path, dpi=150, bbox_inches="tight")
     plt.close(fig)
