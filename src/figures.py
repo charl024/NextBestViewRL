@@ -122,6 +122,7 @@ def main():
     ap.add_argument("--farthest", type=float, required=True)
     ap.add_argument("--greedy", type=float, required=True)
     ap.add_argument("--eval-dir", default="results")
+    ap.add_argument("--seen-split", default="test_seen")        # e.g. test_seen_div
     ap.add_argument("--k", type=int, default=4)
     ap.add_argument("--view-run", default=None)                 # one SLM-Lab output folder
     ap.add_argument("--view-label", default="full")
@@ -137,7 +138,8 @@ def main():
         labels.append(label)
         curves[label] = [load_run(d)[1] for d in final_runs(pattern)]
 
-    evals = {split: load_eval(a.eval_dir, split, a.k) for split in SPLITS}
+    evals = {"test_seen": load_eval(a.eval_dir, a.seen_split, a.k),
+             "test_unseen": load_eval(a.eval_dir, "test_unseen", a.k)}
     fig_main(evals, labels, out / "main_simple.png", detailed=False)
     fig_main(evals, labels, out / "main_detailed.png", detailed=True)
     fig_learning({l: c for l, c in curves.items() if c},

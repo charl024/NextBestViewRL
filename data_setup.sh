@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Set up data/: download ModelNet40, extract the 20 classes the project uses, and fix the
+# Set up data/: download ModelNet40, extract the 29 classes the project uses, and fix the
 # broken .off headers. ModelNet is the only dataset.
 #
 # Usage:  ./data_setup.sh [--keep-zip] [--prune]
@@ -28,7 +28,9 @@ done
 # Training and seen-test classes (ModelNet10), then the held-out unseen-test classes.
 SEEN=(bathtub bed chair desk dresser monitor night_stand sofa table toilet)
 UNSEEN=(airplane bench bookshelf bottle car cup guitar lamp piano vase)
-CLASSES=("${SEEN[@]}" "${UNSEEN[@]}")
+# Varied training classes not in SEEN.
+DIVERSE_EXTRA=(person plant cone bowl tent keyboard laptop stairs radio)
+CLASSES=("${SEEN[@]}" "${UNSEEN[@]}" "${DIVERSE_EXTRA[@]}")
 
 RAW="$DATA_DIR/raw"
 MN="$RAW/ModelNet40"

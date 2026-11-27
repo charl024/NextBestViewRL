@@ -71,3 +71,18 @@ nbv_one:                           # single-object check, 200k frames
   agent: {name: PPO, algorithm: *ppo, memory: {name: OnPolicyBatchReplay}, net: *net}
   env: {<<: *env, max_files: 1, max_frame: 200000}
   meta: *meta
+
+nbv_div_full:                      # varied training classes
+  agent: {name: PPO, algorithm: *ppo, memory: {name: OnPolicyBatchReplay}, net: *net}
+  env: {<<: *env, cache: data/cache/train_div}
+  meta: *meta
+
+nbv_div_hist1:                     # varied training classes, only the latest depth image
+  agent: {name: PPO, algorithm: *ppo, memory: {name: OnPolicyBatchReplay}, net: *net}
+  env: {<<: *env, cache: data/cache/train_div, history: last}
+  meta: *meta
+
+nbv_div_nodirs:                    # varied training classes, no view directions
+  agent: {name: PPO, algorithm: *ppo, memory: {name: OnPolicyBatchReplay}, net: *net}
+  env: {<<: *env, cache: data/cache/train_div, use_dirs: false}
+  meta: *meta
