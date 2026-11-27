@@ -1,0 +1,16 @@
+condition,spec_name,seed,frame_budget,status,output_path,wall_minutes,device
+full,nbv_div_full,11,5000000,completed,SLM-Lab/data/nbv_div_full_2026_11_27_123719,31.0,cuda:0
+full,nbv_div_full,22,5000000,completed,SLM-Lab/data/nbv_div_full_2026_11_27_130823,31.1,cuda:0
+full,nbv_div_full,33,5000000,completed,SLM-Lab/data/nbv_div_full_2026_11_27_133934,31.2,cuda:0
+full,nbv_div_full,44,5000000,completed,SLM-Lab/data/nbv_div_full_2026_11_27_141053,31.0,cuda:0
+full,nbv_div_full,55,5000000,completed,SLM-Lab/data/nbv_div_full_2026_11_27_144158,31.1,cuda:0
+hist1,nbv_div_hist1,11,5000000,completed,SLM-Lab/data/nbv_div_hist1_2026_11_27_123719,31.4,cuda:0
+hist1,nbv_div_hist1,22,5000000,completed,SLM-Lab/data/nbv_div_hist1_2026_11_27_130846,31.0,cuda:0
+hist1,nbv_div_hist1,33,5000000,completed,SLM-Lab/data/nbv_div_hist1_2026_11_27_133953,31.2,cuda:0
+hist1,nbv_div_hist1,44,5000000,completed,SLM-Lab/data/nbv_div_hist1_2026_11_27_141111,31.2,cuda:0
+hist1,nbv_div_hist1,55,5000000,completed,SLM-Lab/data/nbv_div_hist1_2026_11_27_144231,31.1,cuda:0
+nodirs,nbv_div_nodirs,11,5000000,completed,SLM-Lab/data/nbv_div_nodirs_2026_11_27_123719,31.2,cuda:0
+nodirs,nbv_div_nodirs,22,5000000,completed,SLM-Lab/data/nbv_div_nodirs_2026_11_27_130836,31.2,cuda:0
+nodirs,nbv_div_nodirs,33,5000000,completed,SLM-Lab/data/nbv_div_nodirs_2026_11_27_133952,31.2,cuda:0
+nodirs,nbv_div_nodirs,44,5000000,completed,SLM-Lab/data/nbv_div_nodirs_2026_11_27_141110,31.2,cuda:0
+nodirs,nbv_div_nodirs,55,5000000,completed,SLM-Lab/data/nbv_div_nodirs_2026_11_27_144231,31.2,cuda:0
