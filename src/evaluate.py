@@ -12,9 +12,6 @@ import json
 from pathlib import Path
 
 import numpy as np
-import matplotlib
-matplotlib.use("Agg")
-import matplotlib.pyplot as plt
 
 from baselines import BASELINES, optimal_k3
 from score import binary_coverage, curve, load_cache
@@ -94,16 +91,6 @@ def across_seeds(res, label):
     return per_seed
 
 
-def plot_curves(res, out_path, title=""):
-    plt.figure(figsize=(5, 3.5))
-    for m, r in res.items():
-        c = np.array(r["curves"])
-        plt.plot(np.arange(1, c.shape[1] + 1), c.mean(axis=0), marker="o", label=m)
-    plt.xlabel("views chosen"); plt.ylabel("normalized area score"); plt.title(title)
-    plt.grid(alpha=0.3); plt.legend(fontsize=7); plt.tight_layout()
-    plt.savefig(out_path, dpi=150); plt.close()
-
-
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--cache", required=True)                   # e.g. data/cache/test_seen
@@ -139,7 +126,6 @@ def main():
     tag = f"{Path(a.cache).name}_k{a.k}"
     with open(Path(a.out) / f"eval_{tag}.json", "w") as fh:
         json.dump({"files": files, **res}, fh)
-    plot_curves(res, Path(a.out) / f"curves_{tag}.png", title=tag)
 
 
 if __name__ == "__main__":

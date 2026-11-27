@@ -57,7 +57,16 @@ Columns:
 
 ## Learning curves (training meshes, eval return = 10 x score gain)
 
-Threshold = farthest-point return on the training meshes (3.82); floor = random return (3.25).
+Baseline returns on all 500 training meshes (k = 4, same fixed start views; from `results/eval_train_k4.json` via `src/train_returns.py`):
+
+| Baseline | Score | Return |
+|---|---|---|
+| random | 0.547 | 3.248 |
+| farthest | 0.604 | 3.823 |
+| top_k_area | 0.633 | 4.108 |
+| greedy | 0.713 | 4.910 |
+
+Threshold = farthest-point return (3.82); floor = random return (3.25); greedy return (4.91) is the reference line in the learning-curve figure.
 
 | Condition | AUC | Final return | Frames to threshold (per seed) | Failed | Minutes per run |
 |---|---|---|---|---|---|
