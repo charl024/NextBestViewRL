@@ -10,8 +10,12 @@ eval "$(uv run --project SLM-Lab python src/train_returns.py results/eval_train_
 [[ -n "${THRESHOLD:-}" ]] || { echo "could not read train-mesh returns" >&2; exit 1; }
 echo "train-mesh returns: floor ${FLOOR}, threshold ${THRESHOLD}, greedy ${GREEDY}"
 
+# Fixed-sequence baseline, fit on the training meshes (saved to results/fixed_seq_k4.npy)
+uv run --project SLM-Lab python src/fixed_sequence.py --cache data/cache/train --k 4 --out results/fixed_seq_k4.npy
+
 for split in test_seen test_unseen; do
-    uv run --project SLM-Lab python src/evaluate.py --cache data/cache/$split --k 4 "${RUNS[@]}" --device cuda
+    uv run --project SLM-Lab python src/evaluate.py --cache data/cache/$split --k 4 "${RUNS[@]}" \
+        --fixed-seq results/fixed_seq_k4.npy --device cuda
 done
 
 uv run --project SLM-Lab python src/evaluate.py --cache data/cache/test_seen --k 3 --optimal

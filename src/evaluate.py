@@ -6,14 +6,17 @@ Baselines only (nbv env):
 With trained agents (SLM-Lab env):
     uv run --project SLM-Lab python src/evaluate.py --cache data/cache/test_seen --k 4 \
         --runs "full=SLM-Lab/data/nbv_full_*" --runs "hist1=SLM-Lab/data/nbv_hist1_*" --device cuda
+
+Add --fixed-seq results/fixed_seq_k4.npy (from src/fixed_sequence.py) for the fixed-sequence baseline.
 """
 import argparse
 import json
+from functools import partial
 from pathlib import Path
 
 import numpy as np
 
-from baselines import BASELINES, optimal_k3
+from baselines import BASELINES, fixed_sequence, optimal_k3
 from score import binary_coverage, curve, load_cache
 
 
@@ -32,14 +35,18 @@ def rollout(policy, env, file, start):
     return list(env.chosen)
 
 
-def evaluate(files, k, policies=None, img=32, with_optimal=False, seed=0):
-    ''' policies: {name: SLMPolicy}. Returns {method: {"final", "curves", "coverage"}},
-        one entry per object in each list, objects in the order of files. '''
+def evaluate(files, k, policies=None, img=32, with_optimal=False, fixed_seq=None, seed=0):
+    ''' policies: {name: SLMPolicy}. fixed_seq: (n_views, >= k) array from fixed_sequence.fit.
+        Returns {method: {"final", "curves", "coverage"}}, one entry per object in each list,
+        objects in the order of files. '''
     starts = fixed_starts(files, seed=seed)
     rng = np.random.default_rng(seed)
     methods = dict(BASELINES)
     if with_optimal and k == 3:
         methods["optimal"] = optimal_k3
+    if fixed_seq is not None:
+        assert fixed_seq.shape[1] >= k, f"fixed sequences were fit for k = {fixed_seq.shape[1]}"
+        methods["fixed_seq"] = partial(fixed_sequence, seq=fixed_seq)
     policies = policies or {}
     res = {m: {"final": [], "curves": [], "coverage": []} for m in list(methods) + list(policies)}
 
@@ -98,6 +105,7 @@ def main():
     ap.add_argument("--img", type=int, default=32)
     ap.add_argument("--runs", action="append", default=[])      # label=glob of SLM-Lab run folders
     ap.add_argument("--optimal", action="store_true")           # brute force, k = 3 only
+    ap.add_argument("--fixed-seq", default=None)                # .npy from src/fixed_sequence.py
     ap.add_argument("--max-files", type=int, default=None)      # use only the first N files
     ap.add_argument("--device", default="cpu")
     ap.add_argument("--out", default="results")
@@ -116,7 +124,8 @@ def main():
             pol = SLMPolicy(d, device=a.device)
             policies[f"{label}_s{pol.spec['meta']['random_seed']}"] = pol
 
-    res = evaluate(files, a.k, policies, img=a.img, with_optimal=a.optimal)
+    fixed_seq = np.load(a.fixed_seq) if a.fixed_seq else None
+    res = evaluate(files, a.k, policies, img=a.img, with_optimal=a.optimal, fixed_seq=fixed_seq)
     print(f"{len(files)} objects from {a.cache}, k = {a.k}")
     summarize(res)
     for label in labels:

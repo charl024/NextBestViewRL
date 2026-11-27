@@ -51,4 +51,9 @@ def optimal_k3(P, views, start, k=3, rng=None):
             best_val, best_pair = vals[j], (i, j)
     return [start, *best_pair]
 
+def fixed_sequence(P, views, start, k, rng=None, seq=None):
+    ''' Shape-blind baseline: the same views for every object with the same start view.
+        seq (n_views, >= k) comes from fixed_sequence.fit on the training meshes. '''
+    return [int(v) for v in seq[start, :k]]
+
 BASELINES = {"random": random_views, "farthest": farthest_point, "top_k_area": top_k_area, "greedy": greedy}

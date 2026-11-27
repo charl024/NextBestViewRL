@@ -23,10 +23,10 @@ from metrics import load_run
 from slm_policy import SLMPolicy, final_runs, load_spec
 from view_figure import figure as view_figure
 
-BASELINES = ["random", "farthest", "top_k_area", "greedy"]
-COLORS = {"random": "#c7c7c7", "farthest": "#969696", "top_k_area": "#636363", "greedy": "#252525",
+BASELINES = ["random", "farthest", "fixed_seq", "top_k_area", "greedy"]
+COLORS = {"random": "#c7c7c7", "farthest": "#969696", "fixed_seq": "#7f7f7f", "top_k_area": "#636363", "greedy": "#252525",
           "full": "#1f77b4", "hist1": "#ff7f0e", "nodirs": "#2ca02c"}
-NAMES = {"random": "random", "farthest": "farthest-point", "top_k_area": "top-k area",
+NAMES = {"random": "random", "farthest": "farthest-point", "fixed_seq": "fixed sequence", "top_k_area": "top-k area",
          "greedy": "greedy (oracle)"}
 SPLITS = {"test_seen": "seen classes", "test_unseen": "unseen classes"}
 MARKERS = {"test_seen": "o", "test_unseen": "s"}
@@ -44,7 +44,8 @@ def seed_scores(res, label):
 
 def fig_main(evals, labels, out_path, detailed):
     ''' Final score per method; agents as mean +/- std across seeds. detailed adds each seed. '''
-    order = ["random", "farthest", "top_k_area", *labels, "greedy"]
+    fixed = ["fixed_seq"] if all("fixed_seq" in res for res in evals.values()) else []
+    order = ["random", "farthest", *fixed, "top_k_area", *labels, "greedy"]
     size = 11 if detailed else 14
     fig, ax = plt.subplots(figsize=(7.5, 4.8))
     for y, m in enumerate(order):
