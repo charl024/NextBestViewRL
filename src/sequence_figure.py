@@ -13,14 +13,13 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
-from matplotlib.collections import PolyCollection
 
 from baselines import greedy
 from env import NBVEnv
 from evaluate import fixed_starts, rollout
 from score import curve, load_cache
 from slm_policy import SLMPolicy
-from view_figure import MESH_COLOR, normalize, read_off
+from view_figure import MESH_CMAP, camera_light, normalize, read_off, vertex_shade
 
 EXTENT = 1.0
 
@@ -34,13 +33,12 @@ def look_at(p):
     return f, r, np.cross(f, r)
 
 
-def render(ax, tris, cam):
-    ''' Orthographic render from cam, image right = r and up = u, far faces drawn first. '''
+def render(ax, V, F, cam):
+    ''' Smooth-shaded orthographic render from cam, image right = r and up = u, far faces drawn first. '''
     f, r, u = look_at(cam)
-    xy = np.stack([tris @ r, tris @ u], axis=-1)
-    order = np.argsort(-(tris.mean(axis=1) @ f))
-    ax.add_collection(PolyCollection(xy[order], facecolors=MESH_COLOR,
-                                     edgecolors="none"))
+    shade = vertex_shade(V, F, f, camera_light(f, r, u))
+    order = np.argsort(-(V[F].mean(axis=1) @ f))
+    ax.tripcolor(V @ r, V @ u, F[order], shade, shading="gouraud", cmap=MESH_CMAP, vmin=0, vmax=1)
     ax.set_xlim(-EXTENT, EXTENT); ax.set_ylim(-EXTENT, EXTENT)
     ax.set_aspect("equal")
     ax.set_xticks([]); ax.set_yticks([])
@@ -49,7 +47,7 @@ def render(ax, tris, cam):
 def sequence(npz, policy, k, start, out_path):
     o = load_cache(npz)
     V, F = read_off(str(np.load(npz)["mesh_path"]))
-    tris = normalize(V)[F]
+    V = normalize(V)
 
     P, views = o["P"], o["views"]
     env = NBVEnv(files=[npz], k=k, history=policy.spec["env"].get("history", "all"),
@@ -60,7 +58,7 @@ def sequence(npz, policy, k, start, out_path):
     for row, (name, chosen) in zip(axes, rows.items()):
         c = curve(P, chosen, o["F_all"])
         for i, (ax, v) in enumerate(zip(row, chosen)):
-            render(ax, tris, views[v])
+            render(ax, V, F, views[v])
             title = f"view 1 (start): {c[0]:.3f}" if i == 0 else f"view {i + 1}: +{c[i] - c[i - 1]:.3f}"
             ax.set_title(title, fontsize=11)
             inset = ax.inset_axes([0.68, 0.68, 0.3, 0.3])
